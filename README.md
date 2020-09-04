@@ -4,7 +4,7 @@ Noisy Quantum Process Tomography (MSci project)
 
 NoisyQPT contains the code library (rather a semi-related collection of scripts) for synthetic data generation and jupyter 
 notebooks for data-science like analysis, as part of my MSci project. It essentially implements multinomial sampling and semi-definite programming to benchmark quantum process tomography (QPT). This is then used to
-optimize the input stage of QPT by searching through input state space via brute-force and intelligently following some symmetry based arguments.
+optimize the input stage of QPT by searching through input state space via brute-force and intelligently following symmetry based arguments.
 After some further testing, I will open up an issues and contributions channel so that this repository might have some further functional use for others. 
 
 <p align="center">
