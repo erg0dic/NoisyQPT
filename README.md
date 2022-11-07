@@ -40,7 +40,7 @@ For a completely unfixed basis, to save time, one can specify an ansatz for the 
 For a specific basis e.g. `hexagonal` it is sufficient to specify the points on the bloch sphere, and then test QPT performance for a choice of channel e.g. x_rotation.
 Specify the noise level and some binomial sample count.
 
-This is done by the following code in `datacoll.py`,
+The following code  (found in `datacoll.py`) does this,
 ```python
 hexagonal = [[0,0], [np.pi, 0], [np.pi*0.5, np.pi], [np.pi*0.5, np.pi*0.5], [np.pi*0.5, 0], [np.pi*0.5, np.pi*1.5]]
 channels = {"rotx90":x_rotation}
