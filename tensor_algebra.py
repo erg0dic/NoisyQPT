@@ -4,6 +4,7 @@ Created on Tue Jan  7 17:59:43 2020
 @author: Irtaza
 """
 import numpy as np
+import itertools
 
 # define Pauli matrices in the computational basis
 
@@ -64,12 +65,7 @@ def tp(list_of_operators):
     else:
         return np.kron(tp(list_of_operators[:-1]), list_of_operators[-1])
     
-    
 
-
-
-
-import itertools
 
 def krauss_basis(qubits):
     """
@@ -289,7 +285,7 @@ def unitary(bloch_vec, theta, phase):
         raise NotImplementedError("Bloch vector needs to be normalized")
     if theta < 0 or theta > np.pi:
         raise NotImplementedError("Theta outside [0, pi)")
-    if phi < 0 or phi > 2*np.pi:
+    if phase < 0 or phase > 2*np.pi:
         raise NotImplementedError("Phi outside [0, 2*pi)")
     
 

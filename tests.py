@@ -1,12 +1,9 @@
 # channels
-
-gamma=0.3   
-damp = np.array([[[1,0],[0, np.sqrt(1-gamma)]], [[0, np.sqrt(gamma)], [0,0]]]).reshape((2,2,2))
-
-dephase = np.array([[[1,0],[0, np.sqrt(1-gamma)]], [[0, 0], [0,np.sqrt(gamma)]]]).reshape((2,2,2))
-x_rotation = unitary([1,0,0], phase=0, theta = np.pi*1/20)
-y_rotation = unitary([0,1,0], phase=0, theta = np.pi*1/20)
-z_rotation = unitary([0,0,1], phase=0, theta = np.pi*1/20)
+import numpy as np
+from misc_utilities import damp
+from tensor_algebra import *
+from state_tomography import *
+from qpt import dn
 
 def depol(param, state):
      return np.matmul((1-param)*np.eye(len(state)), state) + 0.5*(param)*np.eye(len(state))   
@@ -15,6 +12,21 @@ def dep(param, qubits=1):
     return np.multiply(np.array([np.sqrt(1-0.75*param), 0.5*np.sqrt(param), 0.5*np.sqrt(param), 
                                  0.5*np.sqrt(param)])[:, np.newaxis, np.newaxis],np.array(ko(qubits)))    
 
+theta1, phi1 = 0.5*np.pi, np.pi
+theta2, phi2 = 0.5*np.pi, np.pi*0.5
+qplist = [[theta1, phi1], [theta2, phi2]]
+
+# some incantations
+from qpt import Sqpt_protocol
+from param_optimizer import QPTparaopt
+def channel_dependent_sqpt(channel=damp, measurements=1000) -> Sqpt_protocol:
+        return Sqpt_protocol(channel=channel, noise_level=0.1, 
+           noisy_axis=(True, False, False), measurements=measurements, qubits=1)
+
+proto = channel_dependent_sqpt(damp)
+opt = QPTparaopt(qubit_number=1, qparalist=qplist)
+
+
 # tests: 
 
 # test ta 1:
@@ -22,7 +34,7 @@ def dep(param, qubits=1):
 np.allclose(np.kron(np.kron(I, I), X), tp([I, I, X]))   
 
 # test ta 2:
-
+trho = np.array([[1,1],[1,1]])
 projectors =   np.matmul(np.linalg.eig(ko(1))[1][:,:,:, np.newaxis],
                np.transpose(np.conjugate(np.linalg.eig(ko(1))[1][:,:,:, np.newaxis]), 
                axes=(0,1,3,2)))
@@ -56,7 +68,7 @@ np.allclose(state_tomography(trho3, 3, cheat=True), trho3))
 
 # damping channel (all computational states under action), the final state is not converging, edit: fixed the main code
 
-c, cd = sqpt(ics(damp, vec_basis(1), 1, 100000), 1)
+c, cd = proto.sqpt(proto.ics())
 print(tstate_nu(c, cd, rho_basis(1)[0]),
 tstate_nu(c, cd, rho_basis(1)[1]),
 tstate_nu(c, cd, rho_basis(1)[2]),
@@ -65,7 +77,8 @@ tstate_nu(c, cd, rho_basis(1)[3]))
 
 
 # for depolarising channel the method is convergent
-c, cd = sqpt(ics(dep(0.8), vec_basis(1), 1, 100000), 1)
+proto = channel_dependent_sqpt(channel=dep(0.8), measurements=10000)
+c, cd = proto.sqpt(proto.ics())
 print(tstate_nu(c, cd, rho_basis(1)[0]),
 
 tstate_nu(c, cd, rho_basis(1)[1]),
@@ -81,25 +94,28 @@ tets = [[np.arcsin(np.sqrt(2/3)), np.pi*0.25], [np.arcsin(np.sqrt(2/3)), np.pi+n
          [np.pi-np.arcsin(np.sqrt(2/3)), np.pi-np.pi*0.25], 
          [np.pi-np.arcsin(np.sqrt(2/3)), 2*np.pi-np.pi*0.25] ] # tetrahedral bloch vecs
 
-
-theta1, phi1 = 0.5*np.pi, np.pi
-theta2, phi2 = 0.5*np.pi, np.pi*0.5
-qubits = 1
-terms = 2
-measurements = 1000
-noise_level = 0.0
-noisy_axis = (False, False, False)
-qplist = [[theta1, phi1], [theta2, phi2]]
-input_basis_vectors = vec_basis(qubits)
  
 
-
-print(oics(damp, qplist=qplist, c=cgen(qubits=1, qplist=qplist), 
-           qubits=1, measurements=1000, noise_level=0.1, 
-           noisy_axis=(True, False, False)))
+print(proto.oics(qplist=qplist, c=opt.cgen()))
 
 
+if __name__ == '__main__':
+    theta1, phi1 = 0.5*np.pi, np.pi
+    theta2, phi2 = 0.5*np.pi, np.pi*0.5
+    qplist = [[theta1, phi1], [theta2, phi2]]
+    measurements=1000
+    noise=0.1
+    # some incantations
+    from qpt import Sqpt_protocol
+    from param_optimizer import QPTparaopt
+    def channel_dependent_sqpt(channel=damp, measurements=measurements) -> Sqpt_protocol:
+            return Sqpt_protocol(channel=channel, noise_level=noise, 
+            noisy_axis=(True, False, False), measurements=measurements, qubits=1)
 
+    proto = channel_dependent_sqpt(damp)
+    opt = QPTparaopt(qubit_number=1, qparalist=qplist)
+    coeffs, basis = proto.sqpt(proto.oics(qplist=qplist, c=opt.cgen()))
+    print(f"The accuracy for {measurements} measurements is {1-dn(coeffs, basis, damp)} and noise is {noise}")
 
 #measurements = np.arange(10,10000, 20)
 #c1, c2, c3, c4 = [], [], [], []

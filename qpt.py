@@ -1,12 +1,25 @@
 import numpy as np
 
-from state_tomography import state_tomography, noisy_state_tomography, noisy_rho
-from tensor_algebra import *
+from state_tomography import noisy_rho
+from tensor_algebra import tstate, vec_basis, beta, cartesian_product, ko, rho_basis, tstate_nu
+from qutip import dnorm, Qobj
+
+def qubit(theta, phi):
+    "use the standard definition of a qubit here for scalable parametrization. 0 < theta < pi and 0 < phi < 2*pi"
+    
+    if (theta > np.pi or theta < 0) or (phi < 0 or phi > np.pi*2):
+        raise Exception("theta and phi must obey the boundary conditions specified by the param")
+        
+    return np.array([np.cos(theta / 2.), np.sin(theta / 2.)*np.exp(1j*phi)], dtype='complex128').reshape(2, 1)
+
+
+def rho(theta, phi):
+    
+    return np.matmul(qubit(theta, phi), np.conjugate(qubit(theta, phi)).T)
 
 
 class Sqpt_protocol(object):
-    def __init__(self, channel, input_basis_vectors, 
-                qubits, measurements, noise_level=0, 
+    def __init__(self, channel, qubits, measurements, noise_level=0, 
                 noisy_axis=(False, False, False), t=tstate):
         """
         :param channel: quantum channel 
@@ -26,8 +39,8 @@ class Sqpt_protocol(object):
         """
 
         self.channel = channel
-        self.input_basis_vectors = input_basis_vectors
         self.qubits = qubits
+        self.input_basis_vectors = vec_basis(self.qubits)
         self.measurements = measurements
         self.noise_level = noise_level
         self.noisy_axis = noisy_axis
@@ -155,25 +168,24 @@ class Sqpt_protocol(object):
 
 
     def oics(self, qplist, c):
-    """
-    Informationally overcomplete set of input basis vectors transformed by the channel.
-    Physical tests are commented out as print statements. Use them at your own leisure.
-    More dedicated test scripts will be available in due time.
+        """
+        Informationally overcomplete set of input basis vectors transformed by the channel.
+        Physical tests are commented out as print statements. Use them at your own leisure.
+        More dedicated test scripts will be available in due time.
 
-    --> NB: qplist can have multiple copies of the same measurement axis
-        bloch parameters (theta, phi) or different theta/phi.
-    --> Also NB: Computational basis axis is fixed.
+        --> NB: qplist can have multiple copies of the same measurement axis
+            bloch parameters (theta, phi) or different theta/phi.
+        --> Also NB: Computational basis axis is fixed.
 
-    :param qplist: input vector basis configuration  
-    :type qplist: List or np.array, float
-    :param c: corresponding coefficients for qplist computable via param_optimizer routine
-    :type c: List, float
-    :return: tomographed, transformed, informationally overcomplete basis 
-    :rtype: np.ndarray, float
-    """
+        :param qplist: input vector basis configuration  
+        :type qplist: List or np.array, float
+        :param c: corresponding coefficients for qplist computable via param_optimizer routine
+        :type c: List, float
+        :return: tomographed, transformed, informationally overcomplete basis 
+        :rtype: np.ndarray, float
+        """
 
-        oics=[]
-        input_basis_vectors = vec_basis(self.qubits)
+        _oics=[]
         diags = np.matmul(vec_basis(self.qubits), np.transpose(
                                                     vec_basis(self.qubits), axes=(0, 2, 1)))
         dim = int(2**(self.qubits))
@@ -196,13 +208,13 @@ class Sqpt_protocol(object):
                         #      noisy_axis=(False, False, False)))
                     
                     for j in range(len(diags)):
-                        fin += new_cos[len(qplist)+j]*noisy_rho(self.t(channel, diags[j]), 
+                        fin += new_cos[len(qplist)+j]*noisy_rho(self.t(self.channel, diags[j]), 
                                                                 self.qubits, self.measurements, 
                                                                 self.noise_level, self.noisy_axis)
                     #print(diags[j] - noisy_rho(diags[j], qubits, 
                     #       measurements=1000, noise_level=0.0, noisy_axis=(False, False, False)))  
                 
-                    oics.append(fin)
+                    _oics.append(fin)
                     k+=1   
                         #return []
                 else:
@@ -210,14 +222,14 @@ class Sqpt_protocol(object):
                                 , self.qubits, self.measurements, 
                                 self.noise_level, self.noisy_axis)   # in the z basis
                         
-                    oics.append(nn)
-        oics = np.array(oics)
+                    _oics.append(nn)
+        _oics = np.array(_oics)
 
-        shape = oics.shape
+        shape = _oics.shape
 
-        oics = oics.reshape(shape[0], shape[1]*shape[1],1)
+        _oics = _oics.reshape(shape[0], shape[1]*shape[1],1)
 
-        return oics
+        return _oics
 
     def oics_qt(self, qplist, c):
         """
@@ -258,8 +270,6 @@ class Sqpt_protocol(object):
         
         return oics
 
-from qutip import kraus_to_super, dnorm, Qobj
-
 
 # TODO: 1. maybe put the dn metric calculator in tensor_algebra.py
 #       2. Definitely call the cvxpy routine directly without the qutip wrapper
@@ -268,7 +278,7 @@ from qutip import kraus_to_super, dnorm, Qobj
 #           after I've understood how it works.)            
 
 
-def dn(estimated_k, estimated_kd, true, qubits, true_super=False):
+def dn(estimated_k, estimated_kd, true, qubits=1, true_super=False):
     """
     Figure of merit for comparing the estimated and true channel for judging the 
     performance of the tomography scheme. Takes both estimated and true channel 

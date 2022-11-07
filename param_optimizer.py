@@ -2,14 +2,14 @@
 import numpy as np
 from state_tomography import *
 from scipy.optimize import minimize
-
+from misc_utilities import rho
 class QPTparaopt(object):
     """
     A routine for computing coefficients that go with an arbitrary physically allowed 
     decomposition of an input quantum state. This will be useful for doing parametrizble 
     QPT.
     """
-    def __init__(self, qubit_number=1, qparalist, tolerance=1e-6, no_of_dec_terms=2):
+    def __init__(self, qubit_number=1, qparalist=None, tolerance=1e-6, no_of_dec_terms=2):
         """
         :param qubit_number: number of qubits
         :type qubit_number: int
@@ -46,7 +46,7 @@ class QPTparaopt(object):
         coeffs = np.array(coeffs, dtype='complex128')
         coeffs = coeffs[:int(len(coeffs)/2)] + 1j*coeffs[int(len(coeffs)/2):]
     #    print(coeffs)
-        dim = int(2 ** qubits)
+        dim = int(2 ** self.qubits)
         res = np.zeros(dim * dim, dtype='complex128').reshape(dim, dim)
         
         for i, param in enumerate(self.qubit_params_list):
@@ -55,8 +55,7 @@ class QPTparaopt(object):
         for i, param in enumerate(self.qubit_params_list):
             res -= coeffs[i]*np.diag(np.diag((rho(param[0], param[1])))) # diag mat of diag of mat
     #    print(res)   
-        return np.sum(np.abs(np.real(res)-np.real(off_diag))) 
-                + np.sum(np.abs(np.imag(res)-np.imag(off_diag)))
+        return np.sum(np.abs(np.real(res)-np.real(off_diag))) + np.sum(np.abs(np.imag(res)-np.imag(off_diag)))
 
 
     def f_qt(self, coeffs, rho_basis_vec):
@@ -74,14 +73,13 @@ class QPTparaopt(object):
         """
         coeffs = np.array(coeffs, dtype='complex128')
         coeffs = coeffs[:int(len(coeffs)/2)] + 1j*coeffs[int(len(coeffs)/2):]
-        dim = int(2 ** qubits)
+        dim = int(2 ** self.qubits)
         res = np.zeros(dim * dim, dtype='complex128').reshape(dim, dim)
         
         for i, param in enumerate(self.qubit_params_list):
             res += coeffs[i]*rho(param[0], param[1])
         
-        return np.sum(np.abs(np.real(res)-np.real(rho_basis_vec))) + 
-                np.sum(np.abs(np.imag(res)-np.imag(rho_basis_vec)))
+        return np.sum(np.abs(np.real(res)-np.real(rho_basis_vec))) + np.sum(np.abs(np.imag(res)-np.imag(rho_basis_vec)))
 
 
 
@@ -112,14 +110,14 @@ class QPTparaopt(object):
         if random == True:
             self.qubit_params_list = [[np.random.random(1)*np.pi, np.random.random(1)*2*np.pi] for _ in range(self.terms)]
             
-        opt = minimize(self.f, np.random.random(len(qplist)*2), 
+        opt = minimize(self.f, np.random.random(len(self.qubit_params_list)*2), 
                     args=(offdiag), method='SLSQP', 
                     options={'maxiter': 1000, 'ftol': 1e-15, 'eps': 1.4906e-12})
         
         if opt.fun > self.tol:
             raise NotImplementedError(
                     "The optimization wasn't successful as {} is less than specified tol {}"
-                    .format(opt.fun, tol)
+                    .format(opt.fun, self.tol)
                     )
         c = opt.x
         
@@ -131,7 +129,7 @@ class QPTparaopt(object):
         return cs
 
 
-    def coeffs_qt(self, f, rho_basis_vec, random=False):
+    def coeffs_qt(self, f_qt, rho_basis_vec, random=False):
         """
         Optimization routine using sequential least squares minimization for f_qt above.
         The basis is unfixed so no special diagonal vector exists.
@@ -155,8 +153,7 @@ class QPTparaopt(object):
                     options={'maxiter': 1000, 'ftol': 1e-15, 'eps': 1.4906e-12})
         
         if opt.fun > self.tol:
-            raise NotImplementedError(
-                "The optimization wasn't successful as {} is less than specified tol {}".format(opt.fun, tol))
+            raise NotImplementedError("The optimization wasn't successful as {} is less than specified tol {}".format(opt.fun, self.tol))
         
 
         c = opt.x
@@ -249,13 +246,17 @@ class QPTparaopt(object):
                         
                         cos = self.coeffs(self.f, nm, random=False)
                         
-                        new_cos = test_offdiag(cos, self.qubit_params_list, nm)
+                        new_cos = self.test_offdiag(cos, nm)
                         cs.append(new_cos)
                     except NotImplementedError as e:
+                        base = f"exception ({e}) caught for param values "
+                        bad_param_stringer = lambda x,y: f"(theta, phi)=({x,y})"
+                        bad_pstring=""
+                        for param in cos:
+                            bad_pstring += bad_param_stringer(param[0], param[1])
                         raise NotImplementedError(
-                            "exception ({}) caught for param values (theta1, phi1 = {:.3E}, {:.3E}), (theta2, phi2 = {:.3E}, {:.3E})"
-                            .format(e, (theta1 / (np.pi)), (phi1 / (np.pi)), (theta1 / (np.pi)), 
-                                    (theta2 / (np.pi)), (phi2 / (np.pi))))
+                             base + bad_pstring
+                        )
         return cs    
 
     def cgen_qt(self):
@@ -277,6 +278,6 @@ class QPTparaopt(object):
                 except NotImplementedError as e:
                     raise NotImplementedError(
                             "exception ({}) caught for param values (theta, phi1 = {}, {})".format(
-                                        e, (np.array(qplist)[:, 0] / (np.pi)), 
-                                        (np.array(qplist)[:, 1]/ (np.pi))))
+                                        e, (np.array(self.qubit_params_list)[:, 0] / (np.pi)), 
+                                        (np.array(self.qubit_params_list)[:, 1]/ (np.pi))))
         return cs   

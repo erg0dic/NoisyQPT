@@ -1,3 +1,16 @@
+import numpy as np
+from scipy.optimize import minimize
+from qpt import ko
+from tensor_algebra import unitary
+gamma=0.3   
+damp = np.array([[[1,0],[0, np.sqrt(1-gamma)]], [[0, np.sqrt(gamma)], [0,0]]]).reshape((2,2,2))
+
+dephase = np.array([[[1,0],[0, np.sqrt(1-gamma)]], [[0, 0], [0,np.sqrt(gamma)]]]).reshape((2,2,2))
+x_rotation = unitary([1,0,0], phase=0, theta = np.pi*1/20)
+y_rotation = unitary([0,1,0], phase=0, theta = np.pi*1/20)
+z_rotation = unitary([0,0,1], phase=0, theta = np.pi*1/20)
+
+
 def rotation(theta, axis='x'):
     """anticlockwise SO(3) rotations. Note that the sign is flipped in case the rotation is around the
         y-axis rotates clockwise when you consider the preservation of the left-handedness of xyz coordinates
@@ -85,8 +98,6 @@ def rotcon(state, theta, axis='y'):
         
 
 ### bloch sphere for some good poster illustrations about quantum channels 
-    
-%matplotlib
 from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
 

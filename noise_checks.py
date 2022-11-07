@@ -4,6 +4,15 @@ Created on Tue Feb 18 21:38:35 2020
 
 @author: mirta
 """
+import matplotlib.pyplot as plt 
+import numpy  as np
+import pickle
+from misc_utilities import ma
+from scipy.optimize import curve_fit
+
+
+def func(x, b, c):
+     return c*x**(0.001*(-b))
 
 fig, ax = plt.subplots(nrows=1, ncols=6, figsize=(20, 5))
 w=20   # smooth out the noise by choosing a moving average window

@@ -5,11 +5,14 @@ Created on Sat Mar 14 12:17:47 2020
 @author: Irtaza
 """
 
-from qpt_oop import *
+from qpt import *
 import os
 import pickle
 import param_optimizer as po
 import qpt as q
+import numpy as np
+import matplotlib.pyplot as plt
+from misc_utilities import *
 
 orts = [[np.pi*0.5, np.pi], [0, 0], [np.pi*0.5, 0], [np.pi*0.5, np.pi*0.5]]
 
@@ -20,7 +23,12 @@ class Config(object):
     def __init__(self, channel_name, channel, noise_level, 
                 noisy_axis, input_state_config, config_name, 
                 measurements, pathroot, qubits=1, iterations=1):
-        
+        """_summary_
+
+        Args:
+            
+            iterations (int, optional): Number of experimental repetitions. Defaults to 1.
+        """
         self.channel = channel
         self.noise_level = noise_level
         self.noisy_axis = noisy_axis
@@ -57,8 +65,7 @@ class Config(object):
             
         for iteration in range(1,self.iterations+1,1):
             dns = []
-            path = self.config_name + "_" + self.channel_name + 
-                   str(int(100*self.noise_level)) + "n" + "_it_" + str(iteration)
+            path = self.config_name + "_" + self.channel_name + str(int(100*self.noise_level)) + "n" + "_it_" + str(iteration)
             #print(iteration)
             if self.noisy_axis[0] == True:
                     path += 'x'
@@ -72,7 +79,7 @@ class Config(object):
             if not os.path.exists("{}/{}".format(self.pathroot, path)):
                 
                 for measurement in self.measurements:
-                    protocol = q.Sqpt_protocol(channel, None, qubits, 
+                    protocol = q.Sqpt_protocol(channel, qubits, 
                                     measurement, self.noise_level, self.noisy_axis)
                     rhos = protocol.oics_qt(config, cs)
                     # rhos = oics_qt(channel, config, cs, qubits, measurement, 
@@ -96,8 +103,7 @@ class Config(object):
         self.input_state_config = new_config
      
     def path_projector(self):
-        path = self.config_name + "_" + self.channel_name + 
-                str(int(100*self.noise_level)) + "n" + "_it_" + "{}"
+        path = self.config_name + "_" + self.channel_name + str(int(100*self.noise_level)) + "n" + "_it_" + "{}"
         if self.noisy_axis[0] == True:
             path += 'x'
                 
@@ -137,18 +143,14 @@ class PlotterofData(Config):
     def __init__(self, channels, configs):
         self.channels = channels
         self.configs = configs
-        
-    
-        
-#    def already_recorded(self, path):
-#        "Check if the file has already been recoreded"
-#        return os.path.exists(self.pathroot+path)
-#      
-#        
+        self.pathroot = ""
 
-    
-from oics_template import *
-         
+    def already_recorded(self, path):
+       "Check if the file has already been recoreded"
+       return os.path.exists(self.pathroot+path)
+     
+
+
 channels = {"ampdamp":damp, "depol":dep(0.2), "dephase":dephase, 
             "rotx90":x_rotation, "roty90":y_rotation, "rotz90":z_rotation}
 zzxy = [[np.pi, 0], [0, 0], [np.pi*0.5, 0], [np.pi*0.5, np.pi*0.5]]
